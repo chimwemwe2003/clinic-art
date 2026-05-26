@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  name      String
+  password  String
+  role      Role       @default(CLINICIAN)
+  createdAt DateTime   @default(now())
+  visits    Visit[]
+  audits    AuditLog[]
+}
+
+enum Role {
+  CLINICIAN
+  MANAGER
+}
+
+model Patient {
+  id              String        @id @default(cuid())
+  anonId          String        @unique
+  sex             Sex
+  birthYear       Int
+  district        String
+  enrollmentDate  DateTime
+  artStartDate    DateTime?
+  currentRegimen  String?
+  status          PatientStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  visits          Visit[]
+  viralLoads      ViralLoad[]
+
+  @@index([district])
+  @@index([status])
+  @@index([enrollmentDate])
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum PatientStatus {
+  ACTIVE
+  LOST_TO_FOLLOWUP
+  TRANSFERRED_OUT
+  DECEASED
+}
+
+model Visit {
+  id          String     @id @default(cuid())
+  patientId   String
+  patient     Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  date        DateTime
+  weightKg    Float?
+  bpSystolic  Int?
+  bpDiastolic Int?
+  adherence   Adherence?
+  notes       String?
+  recordedBy  String
+  user        User       @relation(fields: [recordedBy], references: [id])
+  createdAt   DateTime   @default(now())
+
+  @@index([patientId])
+  @@index([date])
+}
+
+enum Adherence {
+  GOOD
+  FAIR
+  POOR
+}
+
+model ViralLoad {
+  id           String   @id @default(cuid())
+  patientId    String
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  testDate     DateTime
+  copiesPerMl  Int
+  suppressed   Boolean
+  createdAt    DateTime @default(now())
+
+  @@index([patientId])
+  @@index([testDate])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  actor     User     @relation(fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entity, entityId])
+}
